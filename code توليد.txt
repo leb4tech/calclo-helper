@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تقسيم الدفع</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Cairo', sans-serif;
+            direction: rtl;
+        }
+        .btn-primary {
+            @apply bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-xl transition-colors duration-200 shadow-lg;
+        }
+        .btn-secondary {
+            @apply bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-xl transition-colors duration-200 shadow-lg;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
+
+    <div class="bg-white p-8 rounded-3xl shadow-xl w-full max-w-lg space-y-6">
+        <h1 class="text-4xl font-bold text-center text-gray-800">تقسيم الدفع</h1>
+        
+        <div class="space-y-4">
+            <!-- حقل إدخال المبلغ الإجمالي -->
+            <div>
+                <label for="totalAmount" class="block text-gray-700 font-semibold mb-2 text-lg">المبلغ الإجمالي:</label>
+                <input type="number" id="totalAmount" class="w-full p-3 rounded-xl border-2 border-gray-300 focus:outline-none focus:border-blue-500 text-lg text-right" placeholder="أدخل المبلغ بالدولار">
+            </div>
+
+            <!-- تفاصيل الدفعات الثابتة والمقسمة -->
+            <div class="bg-gray-50 p-4 rounded-xl border border-gray-200">
+                <h2 class="text-xl font-bold mb-3 text-gray-800">تفاصيل التقسيم</h2>
+                <div class="space-y-2">
+                    <div class="flex justify-between items-center text-lg">
+                        <span>محمد:</span>
+                        <span class="font-bold text-blue-600">$100.00</span>
+                    </div>
+                    <div class="text-gray-600">
+                        <span class="font-bold">المبلغ المتبقي</span> يوزع بالتساوي على:
+                        <ul class="list-disc list-inside mt-1 font-semibold">
+                            <li>ربيع</li>
+                            <li>بلال</li>
+                            <li>حسن</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- حقل الشخص الإضافي -->
+            <div>
+                <label for="extraPerson" class="block text-gray-700 font-semibold mb-2 text-lg">شخص إضافي (اختياري):</label>
+                <input type="text" id="extraPerson" class="w-full p-3 rounded-xl border-2 border-gray-300 focus:outline-none focus:border-blue-500 text-lg text-right" placeholder="أدخل اسم الشخص الإضافي">
+            </div>
+        </div>
+
+        <!-- زر الحساب -->
+        <button onclick="calculatePayments()" class="w-full btn-primary text-2xl">حساب</button>
+
+        <!-- منطقة عرض النتائج ومشاركتها -->
+        <div id="resultsContainer" class="hidden bg-gray-50 p-6 rounded-xl shadow-inner border border-gray-200">
+            <h2 class="text-2xl font-bold text-center mb-4 text-gray-800">النتائج</h2>
+            <div id="results" class="space-y-4 text-lg"></div>
+            <p id="errorMsg" class="text-red-500 font-semibold text-center mt-4 hidden"></p>
+            <div class="mt-6 text-center space-x-4">
+                <button onclick="shareAsImage()" class="btn-secondary text-lg">مشاركة النتيجة كصورة</button>
+                <button onclick="generateSummary()" class="btn-secondary text-lg">✨ تلخيص الدفعة ✨</button>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- حاوية مخفية لإنشاء الصورة -->
+    <div id="captureArea" class="absolute -z-10 opacity-0 bg-white p-8 rounded-3xl shadow-xl w-full max-w-lg">
+        <h1 class="text-4xl font-bold text-center text-gray-800 mb-6">تقرير تقسيم الدفع</h1>
+        <div class="space-y-4 text-lg" id="imageContent"></div>
+    </div>
+    
+    <!-- Modal for summary -->
+    <div id="summaryModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl p-8 max-w-lg w-full shadow-xl relative">
+            <h2 class="text-2xl font-bold text-center text-gray-800 mb-4">ملخص الدفعة</h2>
+            <p id="summaryText" class="text-gray-700 text-lg leading-relaxed text-center"></p>
+            <div class="mt-6 text-center">
+                <button onclick="closeSummaryModal()" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-xl">إغلاق</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function calculatePayments() {
+            const totalAmount = parseFloat(document.getElementById('totalAmount').value);
+            const extraPersonName = document.getElementById('extraPerson').value.trim();
+            const resultsDiv = document.getElementById('results');
+            const resultsContainer = document.getElementById('resultsContainer');
+            const errorMsg = document.getElementById('errorMsg');
+            const imageContent = document.getElementById('imageContent');
+            const shareButtons = document.querySelector('.mt-6');
+
+            // Hide previous results and messages
+            resultsContainer.classList.add('hidden');
+            errorMsg.classList.add('hidden');
+            resultsDiv.innerHTML = '';
+            imageContent.innerHTML = '';
+
+            // Validation
+            if (isNaN(totalAmount) || totalAmount <= 0) {
+                errorMsg.textContent = 'الرجاء إدخال مبلغ إجمالي صحيح.';
+                errorMsg.classList.remove('hidden');
+                return;
+            }
+            const mohammadAmount = 100;
+            if (totalAmount < mohammadAmount) {
+                errorMsg.textContent = 'المبلغ الإجمالي يجب أن يكون أكبر من أو يساوي 100 دولار.';
+                errorMsg.classList.remove('hidden');
+                return;
+            }
+
+            const remainingAmount = totalAmount - mohammadAmount;
+            let peopleToDivide = ['ربيع', 'بلال', 'حسن'];
+
+            if (extraPersonName) {
+                peopleToDivide.push(extraPersonName);
+            }
+
+            const numberOfPeople = peopleToDivide.length;
+            const perPersonAmount = remainingAmount / numberOfPeople;
+
+            const today = new Date();
+            const dateString = today.toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
+
+            // Display results
+            resultsDiv.innerHTML += `<p class="text-gray-500 text-center mb-4 font-normal">التاريخ: ${dateString}</p>`;
+            imageContent.innerHTML += `<p class="text-gray-500 text-center mb-4 font-normal">التاريخ: ${dateString}</p>`;
+
+            resultsDiv.innerHTML += `
+                <div class="flex justify-between items-center py-2 px-4 rounded-xl bg-blue-100 border border-blue-200">
+                    <span class="font-bold text-blue-800">محمد:</span>
+                    <span class="font-bold text-xl text-blue-800">$${mohammadAmount.toFixed(2)}</span>
+                </div>`;
+            imageContent.innerHTML += `
+                <div class="flex justify-between items-center py-2">
+                    <span class="font-bold text-blue-800">محمد:</span>
+                    <span class="font-bold text-xl text-blue-800">$${mohammadAmount.toFixed(2)}</span>
+                </div>`;
+
+            resultsDiv.innerHTML += `
+                <div class="text-center font-semibold text-gray-700 mt-4">نصيب كل من:</div>`;
+            imageContent.innerHTML += `
+                <div class="text-center font-semibold text-gray-700 mt-4">نصيب كل من:</div>`;
+
+            peopleToDivide.forEach(person => {
+                const amount = perPersonAmount.toFixed(2);
+                resultsDiv.innerHTML += `
+                    <div class="flex justify-between items-center py-2 px-4 rounded-xl bg-green-100 border border-green-200">
+                        <span class="text-green-800">${person}:</span>
+                        <span class="font-bold text-xl text-green-800">$${amount}</span>
+                    </div>`;
+                imageContent.innerHTML += `
+                    <div class="flex justify-between items-center py-2">
+                        <span class="text-green-800">${person}:</span>
+                        <span class="font-bold text-xl text-green-800">$${amount}</span>
+                    </div>`;
+            });
+            
+            resultsDiv.innerHTML += `
+                <div class="flex justify-between items-center py-2 px-4 rounded-xl bg-gray-200 mt-4 border border-gray-300">
+                    <span class="font-bold text-lg text-gray-800">المبلغ الإجمالي:</span>
+                    <span class="font-bold text-2xl text-gray-800">$${totalAmount.toFixed(2)}</span>
+                </div>`;
+            imageContent.innerHTML += `
+                <div class="flex justify-between items-center py-2 mt-4">
+                    <span class="font-bold text-lg text-gray-800">المبلغ الإجمالي:</span>
+                    <span class="font-bold text-2xl text-gray-800">$${totalAmount.toFixed(2)}</span>
+                </div>`;
+
+            resultsContainer.classList.remove('hidden');
+        }
+
+        function shareAsImage() {
+            const captureArea = document.getElementById('resultsContainer');
+            const originalButtonText = document.querySelector('.btn-secondary').innerHTML;
+            document.querySelector('.btn-secondary').innerHTML = 'جاري الإنشاء...';
+            document.querySelector('.btn-secondary').disabled = true;
+
+            html2canvas(captureArea).then(canvas => {
+                const image = canvas.toDataURL('image/png');
+                const link = document.createElement('a');
+                link.download = 'تقسيم_الدفع.png';
+                link.href = image;
+                link.click();
+                
+                document.querySelector('.btn-secondary').innerHTML = originalButtonText;
+                document.querySelector('.btn-secondary').disabled = false;
+            });
+        }
+        
+        // Gemini API integration to generate a summary
+        async function generateSummary() {
+            const totalAmount = parseFloat(document.getElementById('totalAmount').value);
+            const extraPersonName = document.getElementById('extraPerson').value.trim();
+            const mohammadAmount = 100;
+            let peopleToDivide = ['ربيع', 'بلال', 'حسن'];
+            if (extraPersonName) {
+                peopleToDivide.push(extraPersonName);
+            }
+            const perPersonAmount = (totalAmount - mohammadAmount) / peopleToDivide.length;
+
+            const summaryModal = document.getElementById('summaryModal');
+            const summaryText = document.getElementById('summaryText');
+            summaryText.textContent = 'جاري إنشاء الملخص...';
+            summaryModal.classList.remove('hidden');
+
+            const prompt = `Act as a friendly accountant. Create a very concise and simple summary of the following payment transaction in Arabic. The total amount was $${totalAmount.toFixed(2)}. Mohammad's fixed share was $${mohammadAmount.toFixed(2)}. The remaining amount was split equally among ${peopleToDivide.join(', ')}. Each person's share was $${perPersonAmount.toFixed(2)}. Do not add a title or salutations.`;
+
+            const apiKey = "";
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+
+            const payload = {
+                contents: [{
+                    parts: [{
+                        text: prompt
+                    }]
+                }],
+                tools: [{ "google_search": {} }]
+            };
+
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const result = await response.json();
+                const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
+                if (text) {
+                    summaryText.textContent = text;
+                } else {
+                    summaryText.textContent = 'حدث خطأ أثناء إنشاء الملخص. الرجاء المحاولة مرة أخرى.';
+                }
+            } catch (error) {
+                console.error('Error generating summary:', error);
+                summaryText.textContent = 'حدث خطأ أثناء الاتصال. الرجاء التحقق من اتصالك بالإنترنت والمحاولة مرة أخرى.';
+            }
+        }
+
+        function closeSummaryModal() {
+            const summaryModal = document.getElementById('summaryModal');
+            summaryModal.classList.add('hidden');
+        }
+    </script>
+
+</body>
+</html>
