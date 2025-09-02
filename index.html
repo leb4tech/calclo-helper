@@ -163,12 +163,18 @@
                 const amount = perPersonAmount.toFixed(2);
                 resultsDiv.innerHTML += `
                     <div class="flex justify-between items-center py-2 px-4 rounded-xl bg-green-100 border border-green-200">
-                        <span class="text-green-800">${person}:</span>
+                        <div class="flex items-center space-x-2">
+                            <span>${person}:</span>
+                            <input type="checkbox" title="تم الدفع" class="w-5 h-5 rounded-full border-2 border-gray-400 checked:bg-green-500 checked:border-transparent cursor-pointer" />
+                        </div>
                         <span class="font-bold text-xl text-green-800">$${amount}</span>
                     </div>`;
                 imageContent.innerHTML += `
                     <div class="flex justify-between items-center py-2">
-                        <span class="text-green-800">${person}:</span>
+                        <div class="flex items-center space-x-2">
+                            <span>${person}:</span>
+                            <input type="checkbox" title="تم الدفع" checked class="w-5 h-5 rounded-full border-2 border-gray-400 checked:bg-green-500 checked:border-transparent cursor-pointer" />
+                        </div>
                         <span class="font-bold text-xl text-green-800">$${amount}</span>
                     </div>`;
             });
@@ -266,4 +272,3 @@
 
 </body>
 </html>
-
